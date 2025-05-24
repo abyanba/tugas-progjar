@@ -1,16 +1,3 @@
-import time
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
-from clientworker import upload_file, download_file, list_files
-import os
-
-def worker_upload(args):
-    host, port, fname = args
-    return upload_file(host, port, fname)
-
-def worker_download(args):
-    host, port, fname, dest_folder = args
-    return download_file(host, port, fname, dest_folder)
-
 def stress_test(
         mode, # "thread" atau "process"
         operation, # 'UPLOAD' atau 'DOWNLOAD'
@@ -19,15 +6,13 @@ def stress_test(
         n_worker_client,
         n_worker_server
     ):
-    import os
     import time
     from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
     from clientworker import upload_file, download_file, list_files
+    import os
 
     success = 0
     fail = 0
-    server_success = 0
-    server_fail = 0
 
     if operation == "UPLOAD":
         fn = lambda args: upload_file(host, port, volume_file)
@@ -52,13 +37,10 @@ def stress_test(
                 result = fut.result()
                 if result:
                     success += 1
-                    server_success += 1
                 else:
                     fail += 1
-                    server_fail += 1
             except Exception:
                 fail += 1
-                server_fail += 1
     end = time.time()
     total_time = end - start
     throughput = (os.path.getsize(volume_file) * success / total_time / 1024) if total_time > 0 else 0
@@ -68,6 +50,6 @@ def stress_test(
         "throughput": throughput,
         "sukses": success,
         "gagal": fail,
-        "server_sukses": server_success,
-        "server_gagal": server_fail
+        "server_sukses": success,
+        "server_gagal": fail
     }

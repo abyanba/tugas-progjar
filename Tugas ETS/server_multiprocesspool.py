@@ -3,7 +3,7 @@ import os
 from concurrent.futures import ProcessPoolExecutor
 
 HOST = '0.0.0.0'
-PORT = 9001
+PORT = int(os.getenv("PORT", 9001))
 WORKER_POOL = int(os.getenv("SERVER_POOL", 5))
 FILES_DIR = "files_process"
 
@@ -21,6 +21,7 @@ def handle_client(conn_data):
                 conn.sendall(files.encode())
             elif cmd == 'UPLOAD':
                 fname, fsize = args[0], int(args[1])
+                conn.sendall(b'READY')
                 with open(os.path.join(FILES_DIR, fname), 'wb') as f:
                     received = 0
                     while received < fsize:
@@ -37,11 +38,15 @@ def handle_client(conn_data):
                 else:
                     size = os.path.getsize(fpath)
                     conn.sendall(f"{size}".encode())
+                    ack = conn.recv(32)
+                    if ack != b'READY':
+                        return
                     with open(fpath, 'rb') as f:
                         while True:
                             chunk = f.read(4096)
                             if not chunk: break
                             conn.sendall(chunk)
+                    conn.sendall(b'DOWNLOAD_OK')
             else:
                 conn.sendall(b'UNKNOWN_CMD')
         except Exception as e:
@@ -56,7 +61,6 @@ def main():
         with ProcessPoolExecutor(WORKER_POOL) as pool:
             while True:
                 conn, addr = s.accept()
-                # Pass file descriptor to subprocess
                 pool.submit(handle_client, (conn.fileno(), addr))
 
 if __name__ == '__main__':

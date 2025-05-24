@@ -3,8 +3,8 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 HOST = '0.0.0.0'
-PORT = 9000
-WORKER_POOL = int(os.getenv("SERVER_POOL", 5))  # Bisa diatur via env
+PORT = int(os.getenv("PORT", 9000))
+WORKER_POOL = int(os.getenv("SERVER_POOL", 5))
 FILES_DIR = "files_thread"
 
 if not os.path.exists(FILES_DIR):
@@ -19,6 +19,7 @@ def handle_client(conn, addr):
             conn.sendall(files.encode())
         elif cmd == 'UPLOAD':
             fname, fsize = args[0], int(args[1])
+            conn.sendall(b'READY')
             with open(os.path.join(FILES_DIR, fname), 'wb') as f:
                 received = 0
                 while received < fsize:
@@ -35,11 +36,15 @@ def handle_client(conn, addr):
             else:
                 size = os.path.getsize(fpath)
                 conn.sendall(f"{size}".encode())
+                ack = conn.recv(32)
+                if ack != b'READY':
+                    return
                 with open(fpath, 'rb') as f:
                     while True:
                         chunk = f.read(4096)
                         if not chunk: break
                         conn.sendall(chunk)
+                conn.sendall(b'DOWNLOAD_OK')
         else:
             conn.sendall(b'UNKNOWN_CMD')
     except Exception as e:
