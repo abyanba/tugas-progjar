@@ -62,6 +62,7 @@ def main():
             while True:
                 conn, addr = s.accept()
                 pool.submit(handle_client, (conn.fileno(), addr))
+                conn.close()
 
 if __name__ == '__main__':
     main()
